@@ -1,2 +1,4 @@
-# Chii-tan
-Twin Tails bot
+# Paitan 牌たん
+Consolidated discord mahjong bot
+
+Also ramen you know...
