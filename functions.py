@@ -57,11 +57,11 @@ class GameInstance(metaclass=Singleton):
             
         game = getGameObject(log)
         names = [n.name for n in game.players]
-        owari = [j for i,j in  enumerate(game.owari.split(",")) if i % 2 == 0][:self.MAX_PLAYERS]
+        owari = [j for i,j in  enumerate(game.owari.split(",")) if i % 2 == 1][:self.MAX_PLAYERS]
 
-        ret = [[" Name","Raw","Adjust"]]
+        ret = []
         for i,score in enumerate(owari):
-            ret.append([names[i],int(score),int(score)*1.5*100])
+            ret.append([names[i],float(score),round(float(score)*1.5,2)])
 
         self.lastError = ret
             

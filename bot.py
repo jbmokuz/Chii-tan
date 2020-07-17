@@ -133,9 +133,12 @@ async def score(ctx, log=None):
         await chan.send(gi.lastError)
         return
     
-    ret = "Chii!```"
+    ret = "Chii!```Raw   Adjust Name\n"
     for player,raw,adjust in gi.lastError:
-        ret += f"{raw} {adjust} {player}\n"
+        if raw >= 0:
+            ret += f" {raw}  {format(adjust,'.2f')} {player}\n"
+        else:
+            ret += f"{raw} {format(adjust,'.2f')} {player}\n"
     ret += "```"
     
     await chan.send(ret)
