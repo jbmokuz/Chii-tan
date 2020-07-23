@@ -5,7 +5,11 @@ import requests, sys, re
 import xml.etree.ElementTree as ET
 import copy
 import urllib
+import time
+import socket
+from discord.ext import tasks
 
+#
 
 TOKEN = os.environ["DISCORD_TT_TOKEN"]
 ROOM_KEY = os.environ["TENHOU_TT_KEY"]
@@ -13,6 +17,88 @@ ROOM_KEY = os.environ["TENHOU_TT_KEY"]
 bot = commands.Bot("!")
 gi = GameInstance()
 
+RUNNING = 1
+REX = re.compile('CHAT\s*uname="(.*)"\s*text="(.*)"\s')
+SOCK = None
+BOT_CHAN = 732570912963952661
+
+def tenhou_connect():
+    global SOCK
+    userid = "ID050434E0-dLWSHHh5"
+    lobby = "C59722513"
+    SOCK = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    SOCK.connect(("133.242.10.78", 10080))
+    SOCK.sendall(f'<HELO name="{userid}" tid="f0" sx="M" />\0'.encode())
+    message = SOCK.recv(8192)
+    print(message.decode('utf-8'))
+
+    SOCK.sendall(f'<CS lobby="{lobby}">\0'.encode())
+    message = SOCK.recv(8192)
+    print(message.decode('utf-8'))
+
+    if b"ERR" in message or not b"LN" in message:
+        print("bad")
+        return 1
+    print("GOOD")
+    return 0
+
+
+@tasks.loop(seconds=2.0)
+async def tenhou_task():
+    global SOCK
+    global RUNNING
+    await bot.wait_until_ready()
+
+    if not RUNNING:
+        time.sleep(1)
+        return
+
+    chan = bot.get_channel(BOT_CHAN)
+
+    try:
+        SOCK.sendall("<DATE />\0".encode())
+    except:
+        time.sleep(1)
+        tenhou_connect()
+
+    message = SOCK.recv(8192)
+    print("MES "+str(message))
+    if b"CHAT" in message:
+        parse_result(message)
+        if b"#END" in message:
+            ret = parse_result(message)
+            await chan.send(ret)
+        else:
+            pass
+            """
+            messages =  urllib.parse.unquote(str(message)).split("\\x00")
+            for m in messages:
+                test = REX.search(m)
+                if test:
+                    name = test.group(1)
+                    text = test.group(2)
+                    await chan.send(f"name:{name} text:{text}")
+            """
+
+
+def parse_result(message):
+    messages =  urllib.parse.unquote(str(message)).split("\\x00")
+    ret = ""
+    for m in messages:
+        print(m)
+        if "CHAT" and "#END" in m:
+            ret = "```Raw  Adjust  Name\n"
+            for i in re.findall(' \S+\(\S+\)',m):
+                player = i.split("(")[0]
+                raw = float(i.split("(")[1].split(")")[0])
+                adjust = raw*1.5
+                ret += f"{str(raw).ljust(6)}{format(adjust,'.2f').ljust(6)}{player}\n"
+            ret += "```\n"
+    return ret
+
+
+                    
 def getVars(ctx):
     player = ctx.author
     chan = ctx.channel
@@ -110,8 +196,24 @@ async def ping(ctx):
     
     player = ctx.author
     chan = ctx.channel
-    await chan.send("Chii?")
+    await chan.send("Chii? " +str(chan.id))
 
+
+@bot.command()
+async def info(ctx):
+    """
+    Ping!
+    """
+
+    player, chan = getVars(ctx)
+    
+    player = ctx.author
+    chan = ctx.channel
+    await chan.send("Chii?\nhttps://tenhou.net/0/?C59722513\nMahjong Soul: 762741")
+
+
+
+    
 @bot.command()
 async def score(ctx, log=None):
     """
@@ -134,11 +236,12 @@ async def score(ctx, log=None):
         return
     
     ret = "Chii!```Raw   Adjust Name\n"
-    for player,raw,adjust in gi.lastError:
-        if raw >= 0:
-            ret += f" {raw}  {format(adjust,'.2f')} {player}\n"
-        else:
-            ret += f"{raw} {format(adjust,'.2f')} {player}\n"
+    for raw,player in gi.lastError:
+        adjust = 0
+        #if raw >= 0:
+        ret += f" {format(raw,'.2f')}  {format(raw*1.5,'.2f')} {player}\n"
+        #else:
+        #    ret += f"{raw} {format(adjust,'.2f')} {player}\n"
     ret += "```"
     
     await chan.send(ret)
@@ -147,6 +250,10 @@ async def score(ctx, log=None):
 async def on_ready():
     print("Time to TwinTail!")
     print("Logged in as: {}".format(bot.user.name))
+    if tenhou_connect() == 0:
+        print("tenhou_connected")
+        tenhou_task.start()
+    
 
 @bot.event
 async def on_error(event, *args, **kwargs):

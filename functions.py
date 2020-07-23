@@ -57,12 +57,26 @@ class GameInstance(metaclass=Singleton):
             
         game = getGameObject(log)
         names = [n.name for n in game.players]
-        owari = [j for i,j in  enumerate(game.owari.split(",")) if i % 2 == 1][:self.MAX_PLAYERS]
-
+        owari = [j for i,j in  enumerate(game.owari.split(",")) if i % 2 == 0][:self.MAX_PLAYERS]
+        #import pdb
+        #pdb.set_trace()
         ret = []
         for i,score in enumerate(owari):
-            ret.append([names[i],float(score),round(float(score)*1.5,2)])
+            ret.append([(float(score)/10)-30,names[i]])
+        above = len([i for i in ret if i[0] >= 0])
+        ret.sort()
+        ret = ret[::-1]
+        uma = []
+        if above == 1:
+            uma = [+12,-1,-3,-8]
+        if above == 2:
+            uma = [+8 ,+4,-4,-8]
+        if above == 3:
+            uma = [+8 ,+3,+1,-8]
+        if above == 4:
+            uma = [+8,+4,-4,-8]
+        for i,j in enumerate(uma):
+            ret[i][0] = ret[i][0] + j
 
         self.lastError = ret
-            
         return 0
